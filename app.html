@@ -624,7 +624,7 @@ function renderMonths() {
   ).join('');
 }
 function selectMonth(i) { S.month = i; renderMonths(); renderInput(); renderAll(); }
-function renderInput() { document.getElementById('renda-input').value = S.renda[S.month] || ''; }
+function renderInput() { const v = parseFloat(S.renda[S.month]); document.getElementById('renda-input').value = (v && v > 0) ? v : ''; }
 function saveRenda() {
   S.renda[S.month] = parseFloat(document.getElementById('renda-input').value) || 0;
   persist(S.month); renderAll();
