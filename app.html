@@ -451,7 +451,10 @@ td.amount input { text-align: right; font-weight: 500; }
 
 <div class="top-controls">
   <div class="panel">
-    <div class="panel-title">Mês de Referência</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="panel-title" style="margin-bottom:0">Mês de Referência</div>
+      <select id="year-select" onchange="selectYear(parseInt(this.value))" style="background:#252836;border:1.5px solid #2e3244;border-radius:8px;color:#f1f3f9;font-size:13px;font-family:inherit;padding:5px 10px;cursor:pointer;outline:none;"></select>
+    </div>
     <div class="month-grid" id="month-grid"></div>
   </div>
   <div class="panel">
@@ -549,7 +552,7 @@ td.amount input { text-align: right; font-weight: 500; }
 // ── Supabase ──
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let sbUser = null;
-const YEAR = new Date().getFullYear();
+let YEAR = new Date().getFullYear();
 
 // ── State ──
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -665,12 +668,27 @@ function applyDark() {
 }
 
 // ── Months ──
+function renderYearSelect() {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+  const sel = document.getElementById('year-select');
+  sel.innerHTML = years.map(y => `<option value="${y}"${y===YEAR?' selected':''}>${y}</option>`).join('');
+}
+
 function renderMonths() {
+  renderYearSelect();
   document.getElementById('month-grid').innerHTML = MONTHS.map((m,i) =>
     `<button class="month-btn${i===S.month?' active':''}" onclick="selectMonth(${i})">${m}</button>`
   ).join('');
 }
 function selectMonth(i) { S.month = i; renderMonths(); renderInput(); renderAll(); }
+
+async function selectYear(year) {
+  YEAR = year;
+  S.rows = {}; S.renda = {};
+  await loadData();
+  renderMonths(); renderInput(); renderAll();
+}
 function renderInput() { const v = parseFloat(S.renda[S.month]); document.getElementById('renda-input').value = (v && v > 0) ? v : ''; }
 function saveRenda() {
   S.renda[S.month] = parseFloat(document.getElementById('renda-input').value) || 0;
