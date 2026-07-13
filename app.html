@@ -91,7 +91,7 @@ body {
 .modal-btn-export:disabled { opacity: .5; cursor: default; }
 
 /* ── App ── */
-#app-screen { display: none; padding: 24px 32px; width: 100%; }
+#app-screen { display: none; width: 100%; }
 
 /* ── Top Bar ── */
 .topbar {
@@ -763,7 +763,7 @@ function showApp() {
   document.getElementById('welcome-name').textContent = name;
   document.getElementById('welcome-avatar').textContent = name.charAt(0).toUpperCase();
   document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('app-screen').style.display = 'flex';
   applyDark();
   renderMonths();
   renderInput();
