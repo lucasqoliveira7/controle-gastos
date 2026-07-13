@@ -746,7 +746,7 @@ function renderTable() {
       <option value="variavel"${r.tipo==='variavel'?' selected':''}>Variável</option>
       <option value="parcelado"${r.tipo==='parcelado'?' selected':''}>Parcelado</option>
     </select></td>
-    <td><button class="recur-btn" onclick="openRecurModal(${r.id})">${recurLabel(r)}</button></td>
+    <td style="text-align:center"><button class="recur-btn" onclick="openRecurModal(${r.id})">${recurLabel(r)}</button></td>
     <td><button class="del-btn" onclick="delRow(${r.id})">×</button></td>
   </tr>`).join('');
   renderFilters();
