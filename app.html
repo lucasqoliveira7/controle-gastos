@@ -695,29 +695,40 @@ async function selectYear(year) {
 }
 
 async function applyCarryoverRecurring() {
-  // Load recurring rows from previous year and apply to current year if within range
   if (!sbUser) return;
   const { data } = await sb.from('financas')
     .select('month, rows')
     .eq('user_id', sbUser.id)
     .eq('year', YEAR - 1);
   if (!data) return;
-  let changed = false;
+
+  // Collect all recurring rows from all months; deduplicate by desc+cat preferring the one with recurUntil set
+  const recurMap = {};
   data.forEach(({ rows: prevRows }) => {
     (prevRows || []).filter(r => r.recur).forEach(rr => {
-      const limitYear = rr.recurUntilYear || (rr.recurUntil != null ? YEAR - 1 : null);
-      if (limitYear != null && YEAR > limitYear) return;
-      for (let m = 0; m < 12; m++) {
-        if (rr.recurUntil != null && YEAR === limitYear && m > rr.recurUntil) continue;
-        const mRows = S.rows[m] || [];
-        if (!mRows.find(r => r.desc === rr.desc && r.cat === rr.cat && r.recur)) {
-          mRows.push({ ...rr, id: Date.now() + Math.random(), date: `${YEAR}-${String(m+1).padStart(2,'0')}-01` });
-          S.rows[m] = mRows;
-          changed = true;
-        }
+      const key = rr.desc + '|' + rr.cat;
+      const existing = recurMap[key];
+      if (!existing || (rr.recurUntil != null && existing.recurUntil == null)) {
+        recurMap[key] = rr;
       }
     });
   });
+
+  let changed = false;
+  Object.values(recurMap).forEach(rr => {
+    const limitYear = rr.recurUntilYear != null ? rr.recurUntilYear : (rr.recurUntil != null ? YEAR - 1 : null);
+    if (limitYear != null && YEAR > limitYear) return;
+    for (let m = 0; m < 12; m++) {
+      if (rr.recurUntil != null && YEAR === limitYear && m > rr.recurUntil) continue;
+      const mRows = S.rows[m] || [];
+      if (!mRows.find(r => r.desc === rr.desc && r.cat === rr.cat && r.recur)) {
+        mRows.push({ ...rr, id: Date.now() + Math.random(), date: `${YEAR}-${String(m+1).padStart(2,'0')}-01` });
+        S.rows[m] = mRows;
+        changed = true;
+      }
+    }
+  });
+
   if (changed) {
     for (let m = 0; m < 12; m++) {
       if (S.rows[m] && S.rows[m].length) {
