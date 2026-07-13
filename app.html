@@ -545,9 +545,10 @@ async function syncMonth(m) {
     year: YEAR,
     month: m,
     rows: S.rows[m] || [],
-    renda: parseFloat(S.renda[m] || 0),
+    renda: parseFloat(S.renda[m]) || 0,
     updated_at: new Date().toISOString()
   }, { onConflict: 'user_id,year,month' });
+  if (error) console.error('Sync error:', error);
   showSyncStatus(!error);
 }
 
