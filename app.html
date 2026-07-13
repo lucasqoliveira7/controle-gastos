@@ -715,31 +715,41 @@ async function applyCarryoverRecurring() {
     });
   });
 
-  // Step 1: add missing recurring rows respecting limits
+  // Helper: should a recurring item appear in month m of YEAR?
+  function recurAllowed(rr, m) {
+    const limitYear = rr.recurUntilYear != null ? rr.recurUntilYear : (rr.recurUntil != null ? YEAR - 1 : null);
+    if (limitYear != null && YEAR > limitYear) return false;
+    if (rr.recurUntil != null && YEAR === limitYear && m > rr.recurUntil) return false;
+    return true;
+  }
+
   let changed = false;
   for (let m = 0; m < 12; m++) {
-    const mRows = S.rows[m] ? [...S.rows[m]] : [];
-    let monthChanged = false;
+    let mRows = S.rows[m] ? [...S.rows[m]] : [];
+
+    // Remove recurring rows that the authoritative recurMap says shouldn't be here
+    const before = mRows.length;
+    mRows = mRows.filter(r => {
+      if (!r.recur) return true;
+      const key = r.desc + '|' + r.cat;
+      const auth = recurMap[key];
+      if (!auth) return true; // not from prev year, keep
+      return recurAllowed(auth, m);
+    });
+
+    // Add missing recurring rows that should be here
     Object.values(recurMap).forEach(rr => {
-      const limitYear = rr.recurUntilYear != null ? rr.recurUntilYear : (rr.recurUntil != null ? YEAR - 1 : null);
-      if (limitYear != null && YEAR > limitYear) return;
-      if (rr.recurUntil != null && YEAR === limitYear && m > rr.recurUntil) return;
+      if (!recurAllowed(rr, m)) return;
       if (!mRows.find(r => r.desc === rr.desc && r.cat === rr.cat && r.recur)) {
         mRows.push({ ...rr, id: Date.now() + Math.random(), date: `${YEAR}-${String(m+1).padStart(2,'0')}-01` });
-        monthChanged = true;
       }
     });
-    // Step 2: remove rows that exceeded their recurrence limit
-    const cleaned = mRows.filter(r => {
-      if (!r.recur || r.recurUntil == null) return true;
-      const ly = r.recurUntilYear != null ? r.recurUntilYear : YEAR - 1;
-      if (YEAR > ly) return false;
-      if (YEAR === ly && m > r.recurUntil) return false;
-      return true;
-    });
-    if (monthChanged || cleaned.length !== mRows.length) {
-      S.rows[m] = cleaned;
+
+    if (mRows.length !== before || mRows.length !== (S.rows[m] || []).length) {
+      S.rows[m] = mRows;
       changed = true;
+    } else {
+      S.rows[m] = mRows;
     }
   }
 
