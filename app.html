@@ -176,8 +176,27 @@ body {
 }
 .save-btn:hover { background: #1d4ed8; }
 
-/* ── Main Grid ── */
-.main-grid { display: grid; grid-template-columns: 1fr clamp(260px, 24%, 340px); gap: 12px; margin-bottom: 12px; }
+/* ── App Body / Nav ── */
+.app-body { display: flex; min-height: calc(100vh - 64px); }
+.app-nav {
+  width: 160px; flex-shrink: 0;
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 16px 10px;
+  position: sticky; top: 64px; height: calc(100vh - 64px);
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; border: none;
+  background: transparent; color: var(--text3);
+  font-size: 13px; font-weight: 500; font-family: inherit;
+  cursor: pointer; text-align: left; width: 100%;
+  transition: background .15s, color .15s;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(37,99,235,.15); color: var(--blue); }
+.nav-item svg { flex-shrink: 0; }
+.app-content { flex: 1; padding: 16px; min-width: 0; overflow-y: auto; }
 
 /* ── Expense Table ── */
 .expense-section {
@@ -415,7 +434,7 @@ td.amount input { text-align: right; font-weight: 500; }
 <!-- App Screen -->
 <div id="app-screen">
 
-<div class="topbar">
+<div class="topbar" style="position:sticky;top:0;z-index:10">
   <div class="topbar-left">
     <div class="welcome-avatar" id="welcome-avatar"></div>
     <div class="welcome-text">
@@ -434,7 +453,28 @@ td.amount input { text-align: right; font-weight: 500; }
   </div>
 </div>
 
-<div id="page-planilha">
+<div class="app-body">
+<!-- Nav lateral -->
+<nav class="app-nav">
+  <button class="nav-item active" onclick="showPage('lancamentos',this)" title="Lançamentos">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+    <span>Lançamentos</span>
+  </button>
+  <button class="nav-item" onclick="showPage('analise',this)" title="Análise">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M2 12h10"/></svg>
+    <span>Análise</span>
+  </button>
+  <button class="nav-item" onclick="showPage('orcamento',this)" title="Orçamento">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    <span>Orçamento</span>
+  </button>
+</nav>
+
+<!-- Conteúdo das páginas -->
+<div class="app-content">
+
+<!-- Página 1: Lançamentos -->
+<div id="page-lancamentos">
 <div class="cards">
   <div class="card">
     <div class="card-label">Renda Mensal</div>
@@ -476,32 +516,56 @@ td.amount input { text-align: right; font-weight: 500; }
   </div>
 </div>
 
-<div class="main-grid">
-  <div class="expense-section">
-    <div class="section-header">
-      <span class="section-title">Lançamentos de Gastos</span>
-      <button class="add-btn" onclick="addRow()">+ Adicionar</button>
+<div class="panel" style="margin-bottom:12px">
+  <div class="section-header">
+    <span class="section-title">Lançamentos de Gastos</span>
+    <button class="add-btn" onclick="addRow()">+ Adicionar</button>
+  </div>
+  <div class="filter-row" id="filter-row"></div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:120px" class="sortable" onclick="sortBy('desc')">Descrição <span class="sort-arrow" data-col="desc">↕</span></th>
+          <th style="width:105px" class="sortable" onclick="sortBy('cat')">Categoria <span class="sort-arrow" data-col="cat">↕</span></th>
+          <th style="width:88px" class="sortable" onclick="sortBy('date')">Data <span class="sort-arrow" data-col="date">↕</span></th>
+          <th style="width:82px" class="sortable" onclick="sortBy('val')">Valor (R$) <span class="sort-arrow" data-col="val">↕</span></th>
+          <th style="width:72px" class="sortable" onclick="sortBy('tipo')">Tipo <span class="sort-arrow" data-col="tipo">↕</span></th>
+          <th style="width:90px">Recorrência</th>
+          <th style="width:26px"></th>
+        </tr>
+      </thead>
+      <tbody id="expense-body"></tbody>
+    </table>
+  </div>
+</div>
+</div><!-- /page-lancamentos -->
+
+<!-- Página 2: Análise -->
+<div id="page-analise" style="display:none">
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Renda Mensal</div>
+      <div class="card-value c-blue" id="kpi-renda2">R$ 0</div>
+      <div class="card-sub">salário + outras receitas</div>
     </div>
-    <div class="filter-row" id="filter-row"></div>
-    <div style="overflow-x:auto">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:120px" class="sortable" onclick="sortBy('desc')">Descrição <span class="sort-arrow" data-col="desc">↕</span></th>
-            <th style="width:105px" class="sortable" onclick="sortBy('cat')">Categoria <span class="sort-arrow" data-col="cat">↕</span></th>
-            <th style="width:88px" class="sortable" onclick="sortBy('date')">Data <span class="sort-arrow" data-col="date">↕</span></th>
-            <th style="width:82px" class="sortable" onclick="sortBy('val')">Valor (R$) <span class="sort-arrow" data-col="val">↕</span></th>
-            <th style="width:72px" class="sortable" onclick="sortBy('tipo')">Tipo <span class="sort-arrow" data-col="tipo">↕</span></th>
-            <th style="width:90px">Recorrência</th>
-            <th style="width:26px"></th>
-          </tr>
-        </thead>
-        <tbody id="expense-body"></tbody>
-      </table>
+    <div class="card">
+      <div class="card-label">Total Gastos</div>
+      <div class="card-value" id="kpi-gastos2">R$ 0</div>
+      <div class="card-sub" id="kpi-gastos-sub2">0 lançamentos</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Saldo Livre</div>
+      <div class="card-value" id="kpi-saldo2">R$ 0</div>
+      <div class="card-sub" id="kpi-saldo-sub2">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">% da Renda Gasto</div>
+      <div class="card-value" id="kpi-pct2">0%</div>
+      <div class="card-sub" id="kpi-pct-sub2">dentro do ideal</div>
     </div>
   </div>
-
-  <div class="sidebar">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
     <div class="panel">
       <div class="panel-title">Distribuição</div>
       <div class="donut-wrap">
@@ -523,35 +587,24 @@ td.amount input { text-align: right; font-weight: 500; }
         </div>
       </div>
     </div>
-
     <div class="panel">
       <div class="panel-title">Gastos por Categoria</div>
       <div id="cat-chart"></div>
     </div>
-
-    <div class="panel">
-      <div class="panel-title">Limites de Orçamento</div>
-      <div id="budget-list"></div>
-      <div style="font-size:10px;color:var(--text3);margin-top:8px">Verde &lt;60% · Amarelo &lt;80% · Vermelho ≥80%</div>
-    </div>
   </div>
-</div>
+</div><!-- /page-analise -->
 
-<div class="annual-section" style="margin-bottom:16px">
-  <div class="annual-header">
-    <span class="annual-title">Evolução Anual</span>
-    <div class="chart-legend">
-      <div class="chart-leg-item"><div class="chart-leg-dot" style="background:var(--blue)"></div>Renda</div>
-      <div class="chart-leg-item"><div class="chart-leg-dot" style="background:var(--red)"></div>Gastos</div>
-      <div class="chart-leg-item"><div class="chart-leg-dot" style="background:var(--green)"></div>Saldo</div>
-    </div>
+<!-- Página 3: Orçamento -->
+<div id="page-orcamento" style="display:none">
+  <div class="panel" style="max-width:600px">
+    <div class="panel-title">Limites de Orçamento</div>
+    <div id="budget-list"></div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px">Verde &lt;60% · Amarelo &lt;80% · Vermelho ≥80%</div>
   </div>
-  <div class="chart-scroll">
-    <div class="chart-bars" id="annual-bars"></div>
-  </div>
-</div>
+</div><!-- /page-orcamento -->
 
-</div><!-- /page-planilha -->
+</div><!-- /app-content -->
+</div><!-- /app-body -->
 </div><!-- /app-screen -->
 
 <!-- Sync indicator -->
@@ -831,6 +884,16 @@ function renderFilters() {
 
 function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
+// ── Page Navigation ──
+function showPage(page, btn) {
+  ['lancamentos','analise','orcamento'].forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if (el) el.style.display = p === page ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
 let sortCol = 'date', sortDir = 1;
 
 function sortBy(col) {
@@ -889,16 +952,15 @@ function calcSummary() {
   const pctLabel = pct < 60 ? 'dentro do ideal' : pct < 80 ? 'atenção: acima de 60%' : '⚠ acima do recomendado';
   const pctSubClass = pct < 60 ? '' : pct < 80 ? 'warn' : 'danger';
 
-  document.getElementById('kpi-renda').textContent = fmt(renda);
-  document.getElementById('kpi-gastos').textContent = fmt(total);
-  document.getElementById('kpi-gastos-sub').textContent = rows.length + ' lançamento' + (rows.length!==1?'s':'');
-  document.getElementById('kpi-saldo').textContent = (saldo<0?'-':'') + fmt(saldo);
-  document.getElementById('kpi-saldo').style.color = saldo < 0 ? 'var(--red)' : 'var(--green)';
-  document.getElementById('kpi-saldo-sub').textContent = renda > 0 ? Math.round(Math.abs(saldo)/renda*100) + '% da renda' : '—';
-  document.getElementById('kpi-pct').textContent = pct + '%';
-  document.getElementById('kpi-pct').style.color = pctColor;
-  document.getElementById('kpi-pct-sub').textContent = pctLabel;
-  document.getElementById('kpi-pct-sub').className = 'card-sub ' + pctSubClass;
+  ['','2'].forEach(s => {
+    const r = document.getElementById('kpi-renda'+s); if(r) r.textContent = fmt(renda);
+    const g = document.getElementById('kpi-gastos'+s); if(g) g.textContent = fmt(total);
+    const gs = document.getElementById('kpi-gastos-sub'+s); if(gs) gs.textContent = rows.length + ' lançamento' + (rows.length!==1?'s':'');
+    const sl = document.getElementById('kpi-saldo'+s); if(sl){ sl.textContent = (saldo<0?'-':'') + fmt(saldo); sl.style.color = saldo < 0 ? 'var(--red)' : 'var(--green)'; }
+    const ss = document.getElementById('kpi-saldo-sub'+s); if(ss) ss.textContent = renda > 0 ? Math.round(Math.abs(saldo)/renda*100) + '% da renda' : '—';
+    const p = document.getElementById('kpi-pct'+s); if(p){ p.textContent = pct+'%'; p.style.color = pctColor; }
+    const ps = document.getElementById('kpi-pct-sub'+s); if(ps){ ps.textContent = pctLabel; ps.className = 'card-sub ' + pctSubClass; }
+  });
 
   const circ = 2 * Math.PI * 34;
   const gf = renda > 0 ? Math.min(1, total/renda) : 0;
