@@ -613,7 +613,16 @@ function persist(m) {
 }
 
 // ── Data access ──
-function getRows(m) { return S.rows[m !== undefined ? m : S.month] || []; }
+function getRows(m) {
+  const month = m !== undefined ? m : S.month;
+  return (S.rows[month] || []).filter(r => {
+    if (!r.recur || r.recurUntil == null) return true;
+    const ly = r.recurUntilYear != null ? r.recurUntilYear : YEAR - 1;
+    if (YEAR > ly) return false;
+    if (YEAR === ly && month > r.recurUntil) return false;
+    return true;
+  });
+}
 function setRows(rows, m) {
   const month = m !== undefined ? m : S.month;
   S.rows[month] = rows;
