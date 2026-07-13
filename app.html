@@ -232,6 +232,12 @@ td.amount input { text-align: right; font-weight: 500; }
 [data-theme="dark"] .del-btn { background: #3b1414; }
 .del-btn:hover { background: #fca5a5; }
 .empty-row td { text-align: center; color: var(--text3); padding: 32px; font-size: 12px; }
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover { color: var(--blue); }
+.sort-arrow { font-size: 10px; color: #4b5563; margin-left: 3px; }
+.sort-arrow.asc { color: var(--blue); }
+.sort-arrow.desc { color: var(--blue); }
+
 .recur-btn { background: #252836; border: 1px solid #2e3244; border-radius: 6px; color: #9ca3af; font-size: 11px; font-family: inherit; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
 .recur-btn:hover { border-color: var(--blue); color: var(--blue); }
 .recur-btn.active { background: rgba(37,99,235,.15); border-color: var(--blue); color: var(--blue); }
@@ -481,11 +487,11 @@ td.amount input { text-align: right; font-weight: 500; }
       <table>
         <thead>
           <tr>
-            <th style="width:120px">Descrição</th>
-            <th style="width:105px">Categoria</th>
-            <th style="width:88px">Data</th>
-            <th style="width:82px">Valor (R$)</th>
-            <th style="width:72px">Tipo</th>
+            <th style="width:120px" class="sortable" onclick="sortBy('desc')">Descrição <span class="sort-arrow" data-col="desc">↕</span></th>
+            <th style="width:105px" class="sortable" onclick="sortBy('cat')">Categoria <span class="sort-arrow" data-col="cat">↕</span></th>
+            <th style="width:88px" class="sortable" onclick="sortBy('date')">Data <span class="sort-arrow" data-col="date">↕</span></th>
+            <th style="width:82px" class="sortable" onclick="sortBy('val')">Valor (R$) <span class="sort-arrow" data-col="val">↕</span></th>
+            <th style="width:72px" class="sortable" onclick="sortBy('tipo')">Tipo <span class="sort-arrow" data-col="tipo">↕</span></th>
             <th style="width:90px">Recorrência</th>
             <th style="width:26px"></th>
           </tr>
@@ -825,9 +831,29 @@ function renderFilters() {
 
 function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
+let sortCol = 'date', sortDir = 1;
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  document.querySelectorAll('.sort-arrow').forEach(el => {
+    el.className = 'sort-arrow';
+    el.textContent = '↕';
+  });
+  const arrow = document.querySelector(`.sort-arrow[data-col="${col}"]`);
+  if (arrow) { arrow.className = 'sort-arrow ' + (sortDir === 1 ? 'asc' : 'desc'); arrow.textContent = sortDir === 1 ? '↑' : '↓'; }
+  renderTable();
+}
+
 function renderTable() {
   const rows = getRows();
-  const filtered = activeFilter === 'Todos' ? rows : rows.filter(r => r.cat === activeFilter);
+  let filtered = activeFilter === 'Todos' ? rows : rows.filter(r => r.cat === activeFilter);
+  filtered = [...filtered].sort((a, b) => {
+    let va = a[sortCol] || '', vb = b[sortCol] || '';
+    if (sortCol === 'val') { va = parseFloat(va)||0; vb = parseFloat(vb)||0; return (va - vb) * sortDir; }
+    if (sortCol === 'date') { va = va.replace(/\//g,'-'); vb = vb.replace(/\//g,'-'); }
+    return va.toString().localeCompare(vb.toString(), 'pt-BR') * sortDir;
+  });
   const tbody = document.getElementById('expense-body');
   if (!filtered.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Nenhum gasto lançado ainda. Clique em "+ Adicionar".</td></tr>`;
