@@ -779,7 +779,7 @@ async function doLogout() {
 function toggleDark() { S.dark = !S.dark; applyDark(); persistPrefs(); }
 function applyDark() {
   document.documentElement.setAttribute('data-theme', S.dark ? 'dark' : '');
-  document.getElementById('theme-btn').textContent = S.dark ? '🌙' : '☀️';
+  const tb = document.getElementById('theme-btn'); if (tb) tb.textContent = S.dark ? '🌙' : '☀️';
 }
 
 // ── Months ──
