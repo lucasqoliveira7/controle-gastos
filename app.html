@@ -232,7 +232,25 @@ td.amount input { text-align: right; font-weight: 500; }
 [data-theme="dark"] .del-btn { background: #3b1414; }
 .del-btn:hover { background: #fca5a5; }
 .empty-row td { text-align: center; color: var(--text3); padding: 32px; font-size: 12px; }
-.recur-check { accent-color: var(--blue); width: 14px; height: 14px; cursor: pointer; }
+.recur-btn { background: #252836; border: 1px solid #2e3244; border-radius: 6px; color: #9ca3af; font-size: 11px; font-family: inherit; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+.recur-btn:hover { border-color: var(--blue); color: var(--blue); }
+.recur-btn.active { background: rgba(37,99,235,.15); border-color: var(--blue); color: var(--blue); }
+
+/* Recur Modal */
+#recur-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:999; align-items:center; justify-content:center; }
+#recur-modal.open { display:flex; }
+#recur-modal .modal-box { background:#1a1d27; border:1px solid #2e3244; border-radius:16px; padding:28px; width:340px; }
+#recur-modal h3 { font-size:15px; margin-bottom:6px; }
+#recur-modal p { font-size:12px; color:#6b7280; margin-bottom:20px; }
+.recur-option { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; border:1.5px solid #2e3244; margin-bottom:8px; font-size:13px; transition: border-color .15s, background .15s; }
+.recur-option:hover { border-color:var(--blue); background:rgba(37,99,235,.07); }
+.recur-option.selected { border-color:var(--blue); background:rgba(37,99,235,.12); color:#fff; }
+.recur-option input[type=radio] { accent-color:var(--blue); }
+#recur-month-select { width:100%; margin-top:8px; padding:8px 10px; background:#252836; border:1.5px solid #2e3244; border-radius:8px; color:#f1f3f9; font-size:13px; font-family:inherit; display:none; }
+.recur-actions { display:flex; gap:8px; margin-top:16px; justify-content:flex-end; }
+.recur-actions button { padding:8px 20px; border-radius:8px; border:none; font-size:13px; font-family:inherit; cursor:pointer; }
+.btn-cancel-recur { background:#252836; color:#9ca3af; }
+.btn-save-recur { background:var(--blue); color:#fff; }
 
 /* ── Sidebar ── */
 .sidebar { display: flex; flex-direction: column; gap: 10px; }
@@ -330,6 +348,35 @@ td.amount input { text-align: right; font-weight: 500; }
 <body>
 
 <!-- Loading Screen -->
+<!-- Recurrence Modal -->
+<div id="recur-modal">
+  <div class="modal-box">
+    <h3>Recorrência do lançamento</h3>
+    <p>Escolha em quais meses este gasto deve se repetir.</p>
+    <label class="recur-option selected" id="recur-opt-none">
+      <input type="radio" name="recur-choice" value="none" checked> Sem recorrência
+    </label>
+    <label class="recur-option" id="recur-opt-all">
+      <input type="radio" name="recur-choice" value="all"> Todos os meses
+    </label>
+    <label class="recur-option" id="recur-opt-until">
+      <input type="radio" name="recur-choice" value="until"> Até o mês:
+    </label>
+    <select id="recur-month-select">
+      <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+      <option value="2">Março</option><option value="3">Abril</option>
+      <option value="4">Maio</option><option value="5">Junho</option>
+      <option value="6">Julho</option><option value="7">Agosto</option>
+      <option value="8">Setembro</option><option value="9">Outubro</option>
+      <option value="10">Novembro</option><option value="11">Dezembro</option>
+    </select>
+    <div class="recur-actions">
+      <button class="btn-cancel-recur" onclick="closeRecurModal()">Cancelar</button>
+      <button class="btn-save-recur" onclick="saveRecur()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div id="loading-screen">
   <div class="loading-logo">💰</div>
   <div class="loading-spinner"></div>
@@ -433,7 +480,7 @@ td.amount input { text-align: right; font-weight: 500; }
             <th style="width:88px">Data</th>
             <th style="width:82px">Valor (R$)</th>
             <th style="width:72px">Tipo</th>
-            <th style="width:28px" title="Repetir mensalmente">↺</th>
+            <th style="width:90px">Recorrência</th>
             <th style="width:26px"></th>
           </tr>
         </thead>
@@ -699,8 +746,7 @@ function renderTable() {
       <option value="variavel"${r.tipo==='variavel'?' selected':''}>Variável</option>
       <option value="parcelado"${r.tipo==='parcelado'?' selected':''}>Parcelado</option>
     </select></td>
-    <td style="text-align:center"><input type="checkbox" class="recur-check" ${r.recur?'checked':''}
-      onchange="updateField(${r.id},'recur',this.checked)" title="Repetir todo mês"/></td>
+    <td style="text-align:center"><button class="recur-btn" onclick="openRecurModal(${r.id})">${recurLabel(r)}</button></td>
     <td><button class="del-btn" onclick="delRow(${r.id})">×</button></td>
   </tr>`).join('');
   renderFilters();
@@ -783,6 +829,74 @@ function setBudget(cat, val) {
   persistPrefs(); calcSummary();
 }
 
+// ── Recurrence Modal ──
+let recurModalId = null;
+
+function recurLabel(r) {
+  if (!r.recur) return '—';
+  if (r.recurUntil == null) return 'Todos';
+  return 'Até ' + MONTHS[r.recurUntil];
+}
+
+function openRecurModal(id) {
+  recurModalId = id;
+  const row = getRows().find(r => r.id === id);
+  if (!row) return;
+  const sel = document.getElementById('recur-month-select');
+  sel.value = row.recurUntil != null ? row.recurUntil : S.month;
+  const choice = !row.recur ? 'none' : row.recurUntil == null ? 'all' : 'until';
+  document.querySelectorAll('input[name="recur-choice"]').forEach(r => r.checked = r.value === choice);
+  document.querySelectorAll('.recur-option').forEach(el => el.classList.remove('selected'));
+  document.getElementById('recur-opt-' + choice).classList.add('selected');
+  sel.style.display = choice === 'until' ? 'block' : 'none';
+  document.getElementById('recur-modal').classList.add('open');
+}
+
+function closeRecurModal() {
+  document.getElementById('recur-modal').classList.remove('open');
+  recurModalId = null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('input[name="recur-choice"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.recur-option').forEach(el => el.classList.remove('selected'));
+      document.getElementById('recur-opt-' + radio.value).classList.add('selected');
+      document.getElementById('recur-month-select').style.display = radio.value === 'until' ? 'block' : 'none';
+    });
+  });
+});
+
+function saveRecur() {
+  if (!recurModalId) return;
+  const choice = document.querySelector('input[name="recur-choice"]:checked').value;
+  const until = parseInt(document.getElementById('recur-month-select').value);
+  const rows = getRows();
+  const row = rows.find(r => r.id === recurModalId);
+  if (!row) { closeRecurModal(); return; }
+  const oldRecur = row.recur;
+  if (choice === 'none') {
+    row.recur = false; row.recurUntil = null;
+  } else if (choice === 'all') {
+    row.recur = true; row.recurUntil = null;
+  } else {
+    row.recur = true; row.recurUntil = until;
+  }
+  setRows(rows);
+  if (row.recur) applyRecurring();
+  else if (oldRecur) removeRecurring(row);
+  closeRecurModal();
+  renderTable(); calcSummary();
+}
+
+function removeRecurring(row) {
+  for (let m = 0; m < 12; m++) {
+    if (m === S.month) continue;
+    const mRows = getRows(m).filter(r => !(r.desc === row.desc && r.cat === row.cat && r.recur));
+    setRows(mRows, m);
+  }
+}
+
 function applyRecurring() {
   const rows = getRows();
   const recurRows = rows.filter(r => r.recur);
@@ -793,8 +907,10 @@ function applyRecurring() {
     const mRows = getRows(m);
     let changed = false;
     recurRows.forEach(rr => {
+      const limit = rr.recurUntil != null ? rr.recurUntil : 11;
+      if (m > limit) return;
       if (!mRows.find(r => r.desc === rr.desc && r.cat === rr.cat && r.recur)) {
-        mRows.push({ ...rr, id: Date.now() + Math.random(), date: `${yr}-${String(m+1).padStart(2,'0')}-01`, recur: true });
+        mRows.push({ ...rr, id: Date.now() + Math.random(), date: `${yr}-${String(m+1).padStart(2,'0')}-01`, recur: true, recurUntil: rr.recurUntil });
         changed = true;
       }
     });
