@@ -702,8 +702,9 @@ async function applyCarryoverRecurring() {
     .eq('year', YEAR - 1);
   if (!data) return;
 
-  // Collect all recurring rows from all months; deduplicate by desc+cat preferring the one with recurUntil set
+  // Deduplicate: prefer row with recurUntil set (most specific definition)
   const recurMap = {};
+  data.sort((a, b) => b.month - a.month); // process later months first (Jul > Jan)
   data.forEach(({ rows: prevRows }) => {
     (prevRows || []).filter(r => r.recur).forEach(rr => {
       const key = rr.desc + '|' + rr.cat;
@@ -714,30 +715,41 @@ async function applyCarryoverRecurring() {
     });
   });
 
+  // Step 1: add missing recurring rows respecting limits
   let changed = false;
-  Object.values(recurMap).forEach(rr => {
-    const limitYear = rr.recurUntilYear != null ? rr.recurUntilYear : (rr.recurUntil != null ? YEAR - 1 : null);
-    if (limitYear != null && YEAR > limitYear) return;
-    for (let m = 0; m < 12; m++) {
-      if (rr.recurUntil != null && YEAR === limitYear && m > rr.recurUntil) continue;
-      const mRows = S.rows[m] || [];
+  for (let m = 0; m < 12; m++) {
+    const mRows = S.rows[m] ? [...S.rows[m]] : [];
+    let monthChanged = false;
+    Object.values(recurMap).forEach(rr => {
+      const limitYear = rr.recurUntilYear != null ? rr.recurUntilYear : (rr.recurUntil != null ? YEAR - 1 : null);
+      if (limitYear != null && YEAR > limitYear) return;
+      if (rr.recurUntil != null && YEAR === limitYear && m > rr.recurUntil) return;
       if (!mRows.find(r => r.desc === rr.desc && r.cat === rr.cat && r.recur)) {
         mRows.push({ ...rr, id: Date.now() + Math.random(), date: `${YEAR}-${String(m+1).padStart(2,'0')}-01` });
-        S.rows[m] = mRows;
-        changed = true;
+        monthChanged = true;
       }
+    });
+    // Step 2: remove rows that exceeded their recurrence limit
+    const cleaned = mRows.filter(r => {
+      if (!r.recur || r.recurUntil == null) return true;
+      const ly = r.recurUntilYear != null ? r.recurUntilYear : YEAR - 1;
+      if (YEAR > ly) return false;
+      if (YEAR === ly && m > r.recurUntil) return false;
+      return true;
+    });
+    if (monthChanged || cleaned.length !== mRows.length) {
+      S.rows[m] = cleaned;
+      changed = true;
     }
-  });
+  }
 
   if (changed) {
     for (let m = 0; m < 12; m++) {
-      if (S.rows[m] && S.rows[m].length) {
-        await sb.from('financas').upsert({
-          user_id: sbUser.id, year: YEAR, month: m,
-          rows: S.rows[m], renda: parseFloat(S.renda[m]) || 0,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,year,month' });
-      }
+      await sb.from('financas').upsert({
+        user_id: sbUser.id, year: YEAR, month: m,
+        rows: S.rows[m] || [], renda: parseFloat(S.renda[m]) || 0,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,year,month' });
     }
   }
 }
